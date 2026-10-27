@@ -172,6 +172,8 @@ fn deflate_roundtrips_integer_and_float() {
     raw.white = vec![1.0];
     for half in [false, true] {
         let bytes = write_dng(&raw, &DngWriteOptions { compression: DngCompression::Deflate { tile: 32, half }, ..Default::default() }).unwrap();
+        let tiff = lightcraft_tiff::Tiff::parse(&bytes).unwrap();
+        assert_eq!(tiff.ifds[0].value(t::WHITE_LEVEL), Some(&Value::Long(vec![1, 1, 1])));
         let back = decode(&bytes).unwrap();
         let RawData::F32(b) = &back.data else { panic!("float data expected") };
         for (a, b) in vals.iter().zip(b) {
