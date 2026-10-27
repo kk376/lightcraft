@@ -437,7 +437,7 @@ fn non_finite_float_samples_decode_and_develop() {
     }
     raw.data = RawData::F32(vals.clone());
     raw.black = BlackLevel::uniform(0.0);
-    raw.white = vec![0.75];
+    raw.white = vec![1.0];
     for compression in [DngCompression::Uncompressed, DngCompression::Deflate { tile: 16, half: false }] {
         let bytes = write_dng(&raw, &DngWriteOptions { compression, ..Default::default() }).unwrap();
         let img = decode(&bytes).unwrap();
@@ -445,7 +445,7 @@ fn non_finite_float_samples_decode_and_develop() {
         let RawData::F32(got) = &img.data else { panic!("float data expected") };
         for (a, b) in vals.iter().zip(got) {
             let want = match *a {
-                f32::INFINITY => 0.75,
+                f32::INFINITY => 1.0,
                 v if v.is_finite() => v,
                 _ => 0.0,
             };
@@ -456,6 +456,15 @@ fn non_finite_float_samples_decode_and_develop() {
             assert!(rgb.data.iter().all(|p| p.iter().all(|v| v.is_finite())), "{m:?}");
         }
     }
+}
+
+#[test]
+fn fractional_white_level_is_rejected() {
+    let mut raw = synthetic(16, 12, None, 1);
+    raw.data = RawData::F32(vec![0.5; 16 * 12]);
+    raw.white = vec![0.75];
+    let err = write_dng(&raw, &DngWriteOptions::default()).unwrap_err();
+    assert!(matches!(err, lightcraft_raw::RawError::Unsupported(ref msg) if msg.contains("fractional white level")));
 }
 
 #[test]
