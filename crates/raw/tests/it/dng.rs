@@ -471,6 +471,9 @@ fn fractional_white_level_is_rejected() {
 fn float_white_level_above_long_range_is_rejected() {
     let mut raw = synthetic(16, 12, None, 1);
     raw.data = RawData::F32(vec![0.5; 16 * 12]);
+    raw.white = vec![u32::MAX as f32];
+    let err = write_dng(&raw, &DngWriteOptions::default()).unwrap_err();
+    assert!(matches!(err, lightcraft_raw::RawError::Unsupported(ref msg) if msg.contains("white level above LONG range")));
     raw.white = vec![u32::MAX as f32 + 1000.0];
     let err = write_dng(&raw, &DngWriteOptions::default()).unwrap_err();
     assert!(matches!(err, lightcraft_raw::RawError::Unsupported(ref msg) if msg.contains("white level above LONG range")));
