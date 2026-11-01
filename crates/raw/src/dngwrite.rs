@@ -241,9 +241,16 @@ pub fn write_dng(raw: &RawImage, opts: &DngWriteOptions) -> Result<Vec<u8>> {
     if !b.delta_v.is_empty() {
         ifd.set(t::BLACK_LEVEL_DELTA_V, Value::SRational(b.delta_v.iter().map(|&v| srational(v as f64)).collect()));
     }
+    // DNG Specification (Tag 50717 WhiteLevel): must be SHORT or LONG. Emitting RATIONAL
+    // for floating-point images was non-conformant and caused third-party decoders to reject
+    // files (#3191). Real-world float DNGs use whole-number saturation limits (e.g. 1, 15488).
+    // Fractional white levels are rejected rather than rescaled to avoid calibration and opcode
+    // table drift (e.g. OpcodeList1 gain maps).
     if !(0..cpp).all(|s| (raw.white_at(s) - raw.white_at(s).round()).abs() < 1e-4) {
         return Err(RawError::Unsupported("fractional white level".into()));
     }
+    // Clamp to minimum 1.0: WhiteLevel must be strictly positive to avoid division by zero
+    // during linear normalization.
     let white: Vec<u32> = (0..cpp).map(|s| raw.white_at(s).round().clamp(1.0, u32::MAX as f32) as u32).collect();
     ifd.set(t::WHITE_LEVEL, Value::Long(white));
     let a = raw.active_area;
