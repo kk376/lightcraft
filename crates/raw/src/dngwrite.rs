@@ -249,6 +249,9 @@ pub fn write_dng(raw: &RawImage, opts: &DngWriteOptions) -> Result<Vec<u8>> {
     if !(0..cpp).all(|s| (raw.white_at(s) - raw.white_at(s).round()).abs() < 1e-4) {
         return Err(RawError::Unsupported("fractional white level".into()));
     }
+    if matches!(raw.data, RawData::F32(_)) && (0..cpp).any(|s| raw.white_at(s) > u32::MAX as f32) {
+        return Err(RawError::Unsupported("white level above LONG range".into()));
+    }
     // Clamp to minimum 1.0: WhiteLevel must be strictly positive to avoid division by zero
     // during linear normalization.
     let white: Vec<u32> = (0..cpp).map(|s| raw.white_at(s).round().clamp(1.0, u32::MAX as f32) as u32).collect();
